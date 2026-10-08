@@ -1,0 +1,83 @@
+rules_version = '2';
+// Regras de segurança da "Minha Agenda".
+// Troque o e-mail abaixo se o dono da agenda mudar (o mesmo de config.js).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function dono() {
+      return request.auth != null
+        && request.auth.token.email.lower() == 'junior.godeiro@icloud.com'
+        && request.auth.token.email_verified == true;
+    }
+    function logado() {
+      return request.auth != null;
+    }
+    function confirmado() {
+      return logado() && request.auth.token.email_verified == true;
+    }
+    function acessoPath() {
+      return /databases/$(database)/documents/acessos/$(request.auth.uid);
+    }
+    // Liberado pelo dono e dentro do período
+    function liberado() {
+      return confirmado()
+        && exists(acessoPath())
+        && (get(acessoPath()).data.inicioTs == null || get(acessoPath()).data.inicioTs <= request.time)
+        && (get(acessoPath()).data.expiraTs == null || request.time < get(acessoPath()).data.expiraTs);
+    }
+    function editor() {
+      return liberado() && get(acessoPath()).data.nivel == 'editar';
+    }
+    function publico() {
+      return exists(/databases/$(database)/documents/config/publico)
+        && get(/databases/$(database)/documents/config/publico).data.ver == true;
+    }
+
+    // Tarefas, grupos e fotos: dono e liberados leem; visitantes só se a opção estiver ligada
+    match /tarefas/{id} {
+      allow read: if dono() || liberado() || publico();
+      allow write: if dono() || editor();
+    }
+    match /grupos/{id} {
+      allow read: if dono() || liberado() || publico();
+      allow write: if dono() || editor();
+    }
+    match /fotos/{id} {
+      allow read: if dono() || liberado() || publico();
+      allow create, update: if (dono() || editor()) && request.resource.data.data is string
+        && request.resource.data.data.size() < 1000000;
+      allow delete: if dono() || editor();
+    }
+
+    // Configurações da agenda: todos leem, só o dono altera
+    match /config/{id} {
+      allow read: if true;
+      allow write: if dono();
+    }
+
+    // Acessos: o dono gerencia; cada pessoa lê apenas o próprio
+    match /acessos/{uid} {
+      allow read: if dono() || (logado() && request.auth.uid == uid);
+      allow write: if dono();
+    }
+
+    // Pedidos de liberação: cada pessoa cria e cancela o próprio; o dono vê e apaga todos
+    match /pedidos/{uid} {
+      allow read: if dono() || (logado() && request.auth.uid == uid);
+      allow create, update: if logado() && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email.lower();
+      allow delete: if dono() || (logado() && request.auth.uid == uid);
+    }
+
+    // Backups: só o dono
+    match /backups/{id} {
+      allow read, write: if dono();
+    }
+
+    // Preferências de cada pessoa (tema, página inicial)
+    match /prefs/{uid} {
+      allow read, write: if logado() && request.auth.uid == uid;
+    }
+  }
+}

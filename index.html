@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f6e62">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Agenda">
+<title>Minha Agenda</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icone-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+/* Layout: uma coluna de bolso — resumo, captura rápida, filtros, lista; edição em folha inferior */
+:root{
+  --bg:#f3f6f5; --surface:#ffffff; --sunk:#e7eeec; --line:#d4dfdc;
+  --fg:#15302b; --muted:#5b726d; --accent:#0f6e62; --accent-fg:#ffffff; --accent-soft:#d5ece7;
+  --p-baixa:#6f8580; --p-media:#2f6fb0; --p-alta:#c27a12; --p-urgente:#c23b3b;
+  --late:#c23b3b; --ok:#2f8a4f;
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1816; --surface:#16221f; --sunk:#1d2b28; --line:#2a3b37;
+  --fg:#e3eeeb; --muted:#93a9a4; --accent:#4cc2ae; --accent-fg:#06201b; --accent-soft:#173a34;
+  --p-baixa:#8ea39e; --p-media:#6aa7e6; --p-alta:#e6a64a; --p-urgente:#ef6e6e; --late:#ef6e6e; --ok:#5fcf86;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1816; --surface:#16221f; --sunk:#1d2b28; --line:#2a3b37;
+  --fg:#e3eeeb; --muted:#93a9a4; --accent:#4cc2ae; --accent-fg:#06201b; --accent-soft:#173a34;
+  --p-baixa:#8ea39e; --p-media:#6aa7e6; --p-alta:#e6a64a; --p-urgente:#ef6e6e; --late:#ef6e6e; --ok:#5fcf86;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--f-body);padding-inline:16px;padding-block:18px 96px}
+.wrap{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font:700 30px/1.05 var(--f-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.today{color:var(--muted);font-size:13px;text-transform:capitalize}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ghost{background:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 10px 8px;text-align:left;min-width:0}
+.stat b{display:block;font:600 20px/1.1 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.stat.late b{color:var(--late)}
+.quick{display:flex;gap:8px;background:var(--surface);border:1.5px solid var(--accent);border-radius:var(--r);padding:6px}
+.quick input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:16px;padding:8px 6px;color:var(--fg)}
+.quick input:focus-visible{outline:none}
+.btn{background:var(--accent);color:var(--accent-fg);border:0;border-radius:10px;padding:9px 14px;font-weight:600}
+.btn.sec{background:var(--sunk);color:var(--fg)}
+.btn.danger{background:none;color:var(--late);border:1px solid var(--late)}
+.quick .more{background:var(--sunk);border:0;border-radius:10px;padding:0 12px;font-size:20px;line-height:1;color:var(--fg)}
+.ctx{font-size:12px;color:var(--muted);margin-top:-8px;padding-left:4px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chips.sub .chip{font-size:12px;padding:4px 10px;background:none}
+.chips.sub .chip[aria-pressed="true"]{background:var(--accent-soft);color:var(--fg);border-color:var(--accent)}
+.tabs{display:flex;gap:4px;background:var(--sunk);border-radius:12px;padding:4px;overflow-x:auto;scrollbar-width:none}
+.tab{flex:1 0 auto;border:0;background:none;border-radius:9px;padding:7px 10px;font-size:13px;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--fg);font-weight:600}
+.tab small{font-family:var(--f-mono);opacity:.7;margin-left:3px}
+.list{display:flex;flex-direction:column;gap:8px}
+.task{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;position:relative}
+.task.done{opacity:.6}
+.task.done .t-title{text-decoration:line-through}
+.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--pc,var(--line));background:none;display:grid;place-items:center;padding:0;margin-top:1px}
+.task.done .check{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.check svg{width:14px;height:14px}
+.t-main{min-width:0;text-align:left;background:none;border:0;padding:0}
+.t-title{font-weight:600;font-size:15.5px;overflow-wrap:anywhere}
+.t-desc{color:var(--muted);font-size:13px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.meta{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:6px;font-size:12px;color:var(--muted);align-items:center}
+.meta .due{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.meta .due.late{color:var(--late);font-weight:600}
+.meta .due.hoje{color:var(--accent);font-weight:600}
+.meta .money{font-family:var(--f-mono);color:var(--fg)}
+.pill{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--pc);border:1px solid var(--pc);border-radius:6px;padding:1px 6px}
+.grp{background:var(--sunk);border-radius:6px;padding:1px 7px}
+.thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--sunk);border:0;padding:0}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:28px 20px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--fg);font:600 18px var(--f-display);margin-bottom:4px}
+/* folha */
+dialog{border:0;padding:0;background:var(--surface);color:var(--fg);width:min(680px,100%);max-width:100%;margin:auto auto 0;border-radius:20px 20px 0 0;max-height:92dvh}
+dialog::backdrop{background:rgba(5,20,17,.45)}
+@media (min-width:720px){dialog{margin:auto;border-radius:20px}}
+.sheet{display:flex;flex-direction:column;gap:14px;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));overflow-y:auto;max-height:92dvh}
+.sheet h2{font:700 22px var(--f-display);margin:0}
+.sh-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field>label,.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.field input,.field select,.field textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 11px;width:100%;min-width:0}
+.field textarea{min-height:72px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--sunk);border-radius:10px;padding:4px}
+.seg button{border:0;background:none;border-radius:7px;padding:8px 2px;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--pc);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--pc)}
+.photo{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.photo img{width:88px;height:88px;object-fit:cover;border-radius:12px}
+.photo label.btn{display:inline-block}
+.toggle{display:flex;align-items:center;gap:10px;font-weight:500}
+.toggle input{width:22px;height:22px;accent-color:var(--ok)}
+.actions{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.actions .r{display:flex;gap:8px;margin-left:auto}
+.confirm{background:var(--sunk);border-radius:10px;padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.note{font-size:12px;color:var(--muted)}
+.gblock{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.gblock .gname{display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.subs{display:flex;flex-wrap:wrap;gap:6px}
+.subs span{background:var(--sunk);border-radius:999px;padding:3px 4px 3px 10px;font-size:13px;display:inline-flex;align-items:center;gap:2px}
+.subs span button{border:0;background:none;color:var(--muted);padding:0 6px;font-size:15px;line-height:1}
+.inline{display:flex;gap:6px}
+.inline input{flex:1;min-width:0;font:inherit;font-size:15px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.viewer{background:none;border:0;padding:0}
+.viewer img{display:block;max-height:80dvh;margin:auto;border-radius:12px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.hbtns{display:flex;gap:6px}
+.badge{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:9px;background:var(--late);color:var(--surface);font:600 11px var(--f-mono);margin-left:4px;padding:0 5px}
+.banner{border-radius:12px;padding:10px 12px;font-size:13.5px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--accent-soft);border:1px solid var(--accent)}
+.banner.warn{background:color-mix(in srgb,var(--p-alta) 14%,var(--surface));border-color:var(--p-alta)}
+.banner.bad{background:color-mix(in srgb,var(--late) 12%,var(--surface));border-color:var(--late)}
+.banner b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.gate{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px 18px;display:flex;flex-direction:column;gap:12px}
+.gate h2{font:700 22px var(--f-display);margin:0}
+.gate p{margin:0;color:var(--muted)}
+.lock{display:flex;flex-direction:column;gap:12px}
+.err{color:var(--late);font-size:13px;min-height:1em}
+.acc{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center}
+.acc .em{font-weight:600;overflow-wrap:anywhere;min-width:0}
+.acc .sub{font-size:12.5px;color:var(--muted);grid-column:1/-1}
+.acc .left{font:600 12px var(--f-mono);border-radius:6px;padding:2px 7px;white-space:nowrap;background:var(--accent-soft);color:var(--fg)}
+.acc .left.warn{background:color-mix(in srgb,var(--p-alta) 20%,var(--surface))}
+.acc .left.bad{background:var(--late);color:var(--surface)}
+.acc .ops{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.sect{font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 -4px}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--sunk);border-radius:10px;padding:4px}
+.plans button{border:0;background:none;border-radius:7px;padding:8px 2px;font-size:13px;color:var(--muted)}
+.plans button[aria-pressed="true"]{background:var(--surface);color:var(--fg);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--accent)}
+.preview{font-size:13px;background:var(--sunk);border-radius:10px;padding:9px 12px}
+.ro .quick,.ro #btnMore{display:none}
+.stats.noval{grid-template-columns:repeat(3,1fr)}
+.done{background:color-mix(in srgb,var(--ok) 12%,var(--surface));border:1px solid var(--ok);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.done p{margin:0;user-select:all;overflow-wrap:anywhere}
+.done .r{display:flex;gap:8px;flex-wrap:wrap}
+.gate .who{font-size:13px;background:var(--sunk);border-radius:10px;padding:9px 12px;color:var(--fg)}
+/* navegação entre páginas */
+.pnav{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);padding:6px 16px calc(6px + env(safe-area-inset-bottom,0px))}
+.pnav .in{max-width:680px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pnav button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:10px;font-size:12px;color:var(--muted)}
+.pnav svg{width:22px;height:22px}
+.pnav button[aria-current="page"]{color:var(--accent);background:var(--accent-soft);font-weight:600}
+.toast{bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+/* painel */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card h2{font:700 17px/1.2 var(--f-display);margin:0}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.card-h small{color:var(--muted);font-size:12px}
+.stat .hint{display:block;font-size:11.5px;color:var(--muted);text-transform:none;letter-spacing:0;margin-top:2px}
+.stat.good b{color:var(--ok)}
+.pfilter{display:flex;align-items:center;gap:10px}
+.sel{font:inherit;font-size:15px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 10px;min-width:0;max-width:100%}
+.drow{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.drow:first-child{border-top:0;padding-top:0}
+.dl b{display:block;font:600 16px/1.1 var(--f-mono);font-variant-numeric:tabular-nums}
+.dl span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.drow.today .dl b,.drow.today .dl span{color:var(--accent)}
+.ditems{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ditem{display:flex;gap:8px;align-items:baseline;background:none;border:0;padding:0;text-align:left;color:inherit;font-size:14px;min-width:0}
+.ditem .dot{width:8px;height:8px;border-radius:50%;background:var(--pc);flex:none;transform:translateY(-1px)}
+.ditem .tt{overflow-wrap:anywhere;min-width:0}
+.ditem .mo{font:500 12px var(--f-mono);color:var(--muted);margin-left:auto;white-space:nowrap;padding-left:8px}
+.ditem .lt{font:600 12px var(--f-mono);color:var(--late);white-space:nowrap}
+.free{color:var(--muted);font-size:13px}
+.hbars{display:flex;flex-direction:column;gap:9px}
+.hbar{display:grid;grid-template-columns:minmax(0,7.5rem) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:13.5px}
+.hbar .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar .tr{height:10px;background:var(--sunk);border-radius:5px;overflow:hidden}
+.hbar .fl{height:100%;background:var(--pc,var(--accent));border-radius:5px}
+.hbar .v{font:500 12.5px var(--f-mono);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hbar .v small{color:var(--muted);margin-left:6px}
+.weeks{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;align-items:end;height:130px}
+.wk{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%;min-width:0}
+.wk .col{width:100%;max-width:30px;background:color-mix(in srgb,var(--accent) 55%,var(--surface));border-radius:5px 5px 2px 2px;min-height:3px}
+.wk.now .col{background:var(--accent)}
+.wk b{font:500 11.5px var(--f-mono);font-variant-numeric:tabular-nums}
+.wk span{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:620px){.two{grid-template-columns:minmax(0,1fr)}}
+/* configurações */
+.set{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:10px 14px;padding:13px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.srow:first-child{border-top:0}
+.sl{flex:1 1 210px;min-width:0}
+.sl b{display:block;font-weight:600}
+.sl span{display:block;font-size:12.5px;color:var(--muted)}
+.srow .plans,.srow .seg{flex:1 1 260px}
+.srow .inline{flex:1 1 260px}
+.srow .r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.srow .confirm{flex-basis:100%}
+.kv{font:500 14px var(--f-mono);font-variant-numeric:tabular-nums}
+.bklist{display:flex;flex-direction:column;gap:8px}
+.bk{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.bk b{font:500 14px var(--f-mono);font-variant-numeric:tabular-nums}
+.bk small{display:block;color:var(--muted);font-size:12px}
+.bk .ops{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;flex:1 1 260px}
+.checks .toggle{font-size:14px}
+#bkText{font:12px/1.4 var(--f-mono);width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px;resize:vertical}
+@media (max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}.stats.noval{grid-template-columns:repeat(3,1fr)}.row{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.task{transition:opacity .2s}}
+
+.gate .plans{margin-bottom:4px}
+.gate .who{font-size:13px;background:var(--sunk);border-radius:10px;padding:9px 12px;color:var(--fg)}
+#grantHint{font-size:13.5px;color:var(--muted);background:var(--sunk);border-radius:10px;padding:10px 12px;margin:0}
+#gEmail[readonly]{opacity:.85}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="today" id="today"></div>
+      <h1 id="h1">Minha Agenda</h1>
+    </div>
+    <div class="hbtns">
+      <button class="ghost" id="btnAcc" type="button" hidden>Acessos<span class="badge" id="accBadge" hidden></span></button>
+      <button class="ghost" id="btnGroups" type="button" hidden>Grupos</button>
+    </div>
+  </header>
+
+  <div class="banner" id="accBanner" hidden></div>
+
+  <section class="gate" id="gate" hidden></section>
+  <div id="gateBack" hidden><button class="ghost" type="button" id="gBack">Voltar a visualizar a agenda</button></div>
+
+  <div class="stack" id="app">
+
+  <section class="stats" aria-label="Resumo">
+    <button class="stat" type="button" data-go="pendentes"><b id="sPend">–</b><span>Pendentes</span></button>
+    <button class="stat" type="button" data-go="hoje"><b id="sHoje">–</b><span>Para hoje</span></button>
+    <button class="stat late" type="button" data-go="atrasadas"><b id="sLate">–</b><span>Atrasadas</span></button>
+    <div class="stat"><b id="sVal">–</b><span>A pagar</span></div>
+  </section>
+
+  <form class="quick" id="quick" autocomplete="off">
+    <input id="quickInput" placeholder="Nova tarefa… ex.: marcar dentista" aria-label="Nova tarefa rápida">
+    <button class="more" type="button" id="btnMore" aria-label="Cadastrar com detalhes">+</button>
+    <button class="btn" type="submit">Adicionar</button>
+  </form>
+  <div class="ctx" id="ctx"></div>
+
+  <nav class="chips" id="groupChips" aria-label="Grupos"></nav>
+  <nav class="chips sub" id="subChips" aria-label="Subgrupos" hidden></nav>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button class="tab" role="tab" data-tab="pendentes">Pendentes<small id="cPend"></small></button>
+    <button class="tab" role="tab" data-tab="hoje">Hoje</button>
+    <button class="tab" role="tab" data-tab="atrasadas">Atrasadas</button>
+    <button class="tab" role="tab" data-tab="concluidas">Concluídas</button>
+    <button class="tab" role="tab" data-tab="todas">Todas</button>
+  </div>
+
+  <section class="list" id="list" aria-live="polite">
+    <div class="empty"><strong>Carregando sua agenda…</strong>Suas tarefas aparecem aqui.</div>
+  </section>
+  </div>
+
+  <!-- Página: Painel -->
+  <div class="stack" id="pgPainel" hidden>
+    <div class="pfilter"><label for="pGrupo" class="lbl">Grupo</label><select id="pGrupo" class="sel"></select></div>
+    <div class="stack" id="pBody"><div class="empty"><strong>Carregando o painel…</strong>Os números aparecem assim que a agenda abrir.</div></div>
+  </div>
+
+  <!-- Página: Configurações -->
+  <div class="stack" id="pgConfig" hidden>
+    <div class="sect">Suas preferências</div>
+    <div class="set">
+      <div class="srow"><div class="sl"><b>Tema</b><span>Salvo na nuvem: vale em todos os seus aparelhos.</span></div>
+        <div class="plans" id="cTema"><button type="button" data-tema="auto">Automático</button><button type="button" data-tema="light">Claro</button><button type="button" data-tema="dark">Escuro</button></div></div>
+      <div class="srow"><div class="sl"><label for="cPagina"><b>Abrir em</b></label><span>Página mostrada ao abrir a agenda.</span></div>
+        <select id="cPagina" class="sel"><option value="tarefas">Tarefas</option><option value="painel">Painel</option></select></div>
+      <div class="srow"><div class="sl"><label for="cAba"><b>Lista inicial</b></label><span>Aba aberta na página de tarefas.</span></div>
+        <select id="cAba" class="sel"><option value="pendentes">Pendentes</option><option value="hoje">Hoje</option><option value="atrasadas">Atrasadas</option><option value="todas">Todas</option></select></div>
+    </div>
+
+    <div class="stack" id="cOwner" hidden>
+      <div class="sect">Agenda</div>
+      <div class="set">
+        <div class="srow"><div class="sl"><b>Nome da agenda</b><span>Aparece no topo da sua agenda.</span></div>
+          <form class="inline" id="cNomeForm" autocomplete="off"><input id="cNome" maxlength="40" aria-label="Nome da agenda"><button class="btn sec" type="submit">Salvar</button></form></div>
+        <div class="srow"><div class="sl"><b>Prioridade padrão</b><span>Usada nas tarefas que você criar.</span></div>
+          <div class="seg" id="cPrio">
+            <button type="button" data-cp="baixa" style="--pc:var(--p-baixa)">Baixa</button>
+            <button type="button" data-cp="media" style="--pc:var(--p-media)">Média</button>
+            <button type="button" data-cp="alta" style="--pc:var(--p-alta)">Alta</button>
+            <button type="button" data-cp="urgente" style="--pc:var(--p-urgente)">Urgente</button>
+          </div></div>
+        <label class="srow" for="cVal"><span class="sl"><b>Mostrar valores em R$</b><span>Exibe na sua tela o total a pagar e o valor de cada tarefa.</span></span>
+          <span class="toggle"><input type="checkbox" id="cVal"></span></label>
+        <label class="srow" for="cPub"><span class="sl"><b>Visitantes podem ver sem conta</b><span>Quem abrir o link vê as tarefas, mas só cadastra depois de criar conta e ser liberado.</span></span>
+          <span class="toggle"><input type="checkbox" id="cPub"></span></label>
+      </div>
+      <div class="sect">Organização</div>
+      <div class="set">
+        <div class="srow"><div class="sl"><b>Grupos e subgrupos</b><span id="cGInfo"></span></div><button class="btn sec" type="button" id="cGrupos">Gerenciar</button></div>
+        <div class="srow"><div class="sl"><b>Acessos</b><span id="cAInfo"></span></div><button class="btn sec" type="button" id="cAcessos">Gerenciar</button></div>
+      </div>
+    </div>
+
+    <div class="stack" id="cClean" hidden>
+      <div class="sect">Limpeza</div>
+      <div class="set">
+        <div class="srow"><div class="sl"><label for="cIdade"><b>Apagar tarefas concluídas</b></label><span id="cCleanInfo"></span></div>
+          <div class="r"><select id="cIdade" class="sel"><option value="30">há mais de 30 dias</option><option value="90" selected>há mais de 90 dias</option><option value="180">há mais de 6 meses</option><option value="365">há mais de 1 ano</option></select>
+          <button class="btn danger" type="button" id="cCleanBtn">Apagar</button></div>
+          <div class="confirm" id="cCleanConf" hidden><span id="cCleanQ"></span> <button type="button" class="btn danger" id="cCleanYes">Apagar</button><button type="button" class="ghost" id="cCleanNo">Cancelar</button></div></div>
+      </div>
+    </div>
+
+    <div class="stack" id="cBackup" hidden>
+      <div class="sect">Backup e restauração</div>
+      <div class="set">
+        <div class="srow"><div class="sl"><b>Criar backup agora</b><span id="bkInfo">Guarda uma cópia das tarefas e grupos na nuvem (ficam os 10 mais recentes). Baixar arquivo salva uma cópia no seu aparelho.</span></div>
+          <div class="r"><button class="btn" type="button" id="bkNow">Criar backup</button><button class="btn sec" type="button" id="bkDown">Baixar arquivo</button></div></div>
+        <div class="srow" style="display:block"><div class="bklist" id="bkList"></div></div>
+        <div class="srow"><div class="sl"><b>Restaurar de um arquivo</b><span>Arquivo .json baixado ou copiado antes.</span></div>
+          <label class="btn sec" for="bkFile">Escolher arquivo</label><input type="file" id="bkFile" accept=".json,application/json,text/plain" hidden></div>
+        <div class="srow" id="bkRestore" hidden style="display:flex">
+          <div class="confirm" style="flex-basis:100%"><span id="bkRestoreQ"></span>
+            <button type="button" class="btn danger" id="bkRestoreYes">Restaurar</button><button type="button" class="ghost" id="bkRestoreNo">Cancelar</button></div></div>
+        <div class="srow" id="bkCopyBox" hidden style="display:flex;flex-direction:column;align-items:stretch">
+          <div class="sl"><b>Backup copiado</b><span id="bkCopyInfo">Cole em uma nota, e-mail ou arquivo .json para guardar fora da agenda.</span></div>
+          <textarea id="bkText" readonly rows="4" aria-label="Texto do backup"></textarea>
+          <div class="r"><button type="button" class="ghost" id="bkCopyX">Fechar</button></div></div>
+      </div>
+
+      <div class="sect">Apagar informações</div>
+      <form class="set" id="delForm" autocomplete="off">
+        <div class="srow"><div class="sl"><b>O que apagar</b><span>Um backup automático é criado antes de apagar tarefas ou grupos.</span></div>
+          <div class="checks">
+            <label class="toggle"><input type="checkbox" id="dT" checked> Tarefas</label>
+            <label class="toggle"><input type="checkbox" id="dF"> Fotos das tarefas</label>
+            <label class="toggle"><input type="checkbox" id="dG"> Grupos e subgrupos</label>
+            <label class="toggle"><input type="checkbox" id="dA"> Acessos e pedidos</label>
+          </div></div>
+        <div class="srow"><div class="sl"><label for="dPass"><b>Senha cadastrada</b></label><span id="dPassInfo">A senha que você usa para entrar na agenda.</span></div>
+          <div class="inline"><input type="password" id="dPass" autocomplete="current-password" required aria-label="Senha cadastrada"><button class="btn danger" type="submit" id="dBtn">Apagar</button></div>
+          <div class="err" id="dErr" style="flex-basis:100%"></div></div>
+      </form>
+    </div>
+
+    <div class="stack" id="cMeDel" hidden>
+      <div class="sect">Meu cadastro</div>
+      <form class="set" id="meDelForm" autocomplete="off">
+        <div class="srow"><div class="sl"><label for="meDelPass"><b>Apagar minha conta</b></label><span>Apaga sua conta (e-mail e senha) e seu pedido de acesso. Para voltar a usar, será preciso criar outra conta e pedir nova liberação.</span></div>
+          <div class="inline"><input type="password" id="meDelPass" autocomplete="current-password" required placeholder="Sua senha" aria-label="Sua senha"><button class="btn danger" type="submit" id="meDelBtn">Apagar</button></div>
+          <div class="err" id="meDelErr" style="flex-basis:100%"></div></div>
+      </form>
+    </div>
+
+    <div class="sect">Sobre</div>
+    <div class="set">
+      <div class="srow"><div class="sl"><b>Seu acesso</b></div><span class="kv" id="cRole">–</span></div>
+      <div class="srow"><div class="sl"><b>Tarefas</b></div><span class="kv" id="cTot">–</span></div>
+      <div class="srow" id="cIn" hidden><div class="sl"><b>Conta</b><span>Entre ou crie sua conta para cadastrar tarefas.</span></div><button class="btn" type="button" id="cLogin">Entrar / Criar conta</button></div>
+      <div class="srow" id="cOut" hidden><div class="sl"><b>Sair da conta</b><span id="cOutInfo"></span></div><button class="btn sec" type="button" id="cLogout">Sair</button></div>
+    </div>
+  </div>
+</div>
+
+<nav class="pnav" id="pnav" aria-label="Páginas"><div class="in">
+  <button type="button" data-page="tarefas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Tarefas</button>
+  <button type="button" data-page="painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Painel</button>
+  <button type="button" data-page="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Configurações</button>
+</div></nav>
+
+<!-- Acessos (dono) -->
+<dialog id="dlgA">
+  <div class="sheet" id="accSheet">
+    <div class="sh-head"><h2>Acessos</h2><button type="button" class="ghost" data-close>Fechar</button></div>
+    <div class="stack" id="accPanel">
+      <div class="sect" id="pedTitle">Pedidos de acesso</div>
+      <div class="list" id="pedList"></div>
+
+      <div class="sect">Liberar acesso</div>
+      <p id="grantHint">Toque em Liberar em um pedido acima, ou em Renovar em alguém da lista abaixo.</p>
+      <form class="stack" id="grantForm" autocomplete="off" hidden>
+        <div class="field"><label for="gEmail">E-mail</label><input type="email" id="gEmail" readonly></div>
+        <div class="field"><label for="gNome">Nome</label><input id="gNome" placeholder="Ex.: Maria"></div>
+        <div class="field"><span class="lbl">Nível de acesso</span>
+          <div class="plans" id="gNivel" style="grid-template-columns:1fr 1fr">
+            <button type="button" data-n="ver">Só ver</button>
+            <button type="button" data-n="editar">Ver e editar</button>
+          </div>
+        </div>
+        <div class="field"><span class="lbl">Período</span>
+          <div class="plans" id="gPlano">
+            <button type="button" data-pl="dias">Dias</button>
+            <button type="button" data-pl="mensal">Mensal</button>
+            <button type="button" data-pl="semestral">6 meses</button>
+            <button type="button" data-pl="anual">Anual</button>
+            <button type="button" data-pl="periodo">Período</button>
+            <button type="button" data-pl="sempre">Sem prazo</button>
+          </div>
+        </div>
+        <div class="field" id="gDiasWrap"><label for="gDias">Quantidade de dias</label><input type="number" id="gDias" min="1" max="3650" value="30" inputmode="numeric"></div>
+        <div class="row" id="gPerWrap" hidden>
+          <div class="field"><label for="gDe">De</label><input type="date" id="gDe"></div>
+          <div class="field"><label for="gAte">Até</label><input type="date" id="gAte"></div>
+        </div>
+        <div class="preview" id="gPrev"></div>
+        <div class="err" id="gErr"></div>
+        <div class="actions"><button type="button" class="ghost" id="gClear">Cancelar</button><div class="r"><button class="btn" type="submit" id="gBtn">Liberar acesso</button></div></div>
+      </form>
+      <div class="done" id="gDone" hidden>
+        <b>Acesso liberado</b>
+        <p id="gMsg"></p>
+        <div class="r"><button type="button" class="btn" id="gCopy">Copiar aviso</button><button type="button" class="ghost" id="gDoneX">Fechar</button></div>
+        <span class="note" id="gDoneInfo"></span>
+      </div>
+
+      <div class="sect">Quem tem acesso</div>
+      <div class="list" id="accList"></div>
+      <p class="note">Como funciona: a pessoa abre o link, cria a conta com e-mail e senha e confirma o e-mail. O pedido aparece aqui; você toca em Liberar e escolhe o período. Quando o acesso vencer ou for revogado, ela volta a só visualizar (ou nem isso, se a opção de visitantes estiver desligada).</p>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dlg">
+  <form class="sheet" id="form" autocomplete="off">
+    <div class="sh-head"><h2 id="formTitle">Nova tarefa</h2><button type="button" class="ghost" data-close>Fechar</button></div>
+    <div class="field"><label for="fTitulo">Tarefa</label><input id="fTitulo" required placeholder="O que precisa ser feito"></div>
+    <div class="field"><label for="fDesc">Descrição</label><textarea id="fDesc" placeholder="Detalhes, endereço, observações"></textarea></div>
+    <div class="field" id="photoField">
+      <span class="lbl">Foto</span>
+      <div class="photo">
+        <img id="fFotoPrev" alt="Foto da tarefa" hidden>
+        <label class="btn sec" for="fFoto" id="fFotoLbl">Adicionar foto</label>
+        <input type="file" id="fFoto" accept="image/*" hidden>
+        <button type="button" class="ghost" id="fFotoDel" hidden>Remover foto</button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="lbl">Prioridade</span>
+      <div class="seg" id="fPrio">
+        <button type="button" data-p="baixa" style="--pc:var(--p-baixa)">Baixa</button>
+        <button type="button" data-p="media" style="--pc:var(--p-media)">Média</button>
+        <button type="button" data-p="alta" style="--pc:var(--p-alta)">Alta</button>
+        <button type="button" data-p="urgente" style="--pc:var(--p-urgente)">Urgente</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="fPrazo">Prazo previsto</label><input type="date" id="fPrazo"></div>
+      <div class="field"><label for="fRec">Repetição</label>
+        <select id="fRec"><option value="">Não repete</option><option value="diaria">Diária</option><option value="semanal">Semanal</option><option value="mensal">Mensal</option><option value="anual">Anual</option></select></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="fExec">Quem vai executar</label><input id="fExec" list="execList" placeholder="Ex.: eu, Maria"><datalist id="execList"></datalist></div>
+      <div class="field"><label for="fValor">Valor (R$)</label><input id="fValor" inputmode="decimal" placeholder="0,00"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="fGrupo">Grupo</label><select id="fGrupo"></select></div>
+      <div class="field"><label for="fSub">Subgrupo</label><select id="fSub"></select></div>
+    </div>
+    <label class="toggle"><input type="checkbox" id="fDone"> Concluída</label>
+    <p class="note" id="recNote" hidden>Ao concluir, a próxima ocorrência é criada automaticamente.</p>
+    <div class="confirm" id="delConfirm" hidden>Excluir esta tarefa? <button type="button" class="btn danger" id="delYes">Excluir</button><button type="button" class="ghost" id="delNo">Cancelar</button></div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="btnDel" hidden>Excluir</button>
+      <div class="r"><button type="button" class="btn sec" data-close>Cancelar</button><button class="btn" type="submit" id="btnSave">Salvar</button></div>
+    </div>
+  </form>
+</dialog>
+
+<!-- Grupos -->
+<dialog id="dlgG">
+  <div class="sheet">
+    <div class="sh-head"><h2>Grupos e subgrupos</h2><button type="button" class="ghost" data-close>Fechar</button></div>
+    <div id="gList" class="list"></div>
+    <form class="inline" id="gAdd"><input id="gNew" placeholder="Novo grupo (ex.: Casa, Carro)" aria-label="Novo grupo"><button class="btn" type="submit">Criar</button></form>
+  </div>
+</dialog>
+
+<dialog id="dlgImg"><button class="viewer" type="button" data-close><img id="bigImg" alt="Foto ampliada"></button></dialog>
+<div class="toast" id="toast" hidden></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

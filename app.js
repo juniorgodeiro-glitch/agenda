@@ -80,7 +80,7 @@ const AG={...AG_DEF};
 const LP={tema:"auto",pagina:"tarefas",aba:"pendentes"};
 try{Object.assign(LP,JSON.parse(localStorage.getItem("agenda.prefs")||"{}"))}catch{}
 S.tab=LP.aba||"pendentes";
-S.page=({painel:"painel",configuracoes:"config",config:"config",tarefas:"tarefas"})[location.hash.slice(1)]||LP.pagina||"tarefas";
+S.page=({painel:"painel",rotina:"rotina",secretaria:"rotina",configuracoes:"config",config:"config",tarefas:"tarefas"})[location.hash.slice(1)]||LP.pagina||"tarefas";
 function applyTheme(){const r=document.documentElement;LP.tema==="auto"?r.removeAttribute("data-theme"):r.setAttribute("data-theme",LP.tema)}
 applyTheme();
 
@@ -110,10 +110,10 @@ const db={
     get:async()=>{const s=await getDoc(ref);return{exists:s.exists(),data:()=>s.data()}},
     onSnapshot:(ok,err)=>onSnapshot(ref,s=>ok({exists:s.exists(),data:()=>s.data()}),err)}}
 };
-async function batchRun(ops){ // ops: [{t:"set"|"del", p:path, d}]
+async function batchRun(ops){ // ops: [{t:"set"|"upd"|"del", p:path, d}]
   for(let i=0;i<ops.length;i+=400){
     const b=writeBatch(fs);
-    for(const o of ops.slice(i,i+400)){const r=doc(fs,...seg(o.p));o.t==="del"?b.delete(r):b.set(r,o.d)}
+    for(const o of ops.slice(i,i+400)){const r=doc(fs,...seg(o.p));o.t==="del"?b.delete(r):o.t==="upd"?b.update(r,o.d):b.set(r,o.d)}
     await b.commit();
   }
 }
@@ -195,7 +195,7 @@ function render(){
     const p=PRIO[t.prioridade||"media"], g=gName(t.grupo);
     const due=t.prazo?`<span class="due ${isLate(t)?"late":t.prazo===TODAY&&!t.concluida?"hoje":""}">${isLate(t)?"Atrasada · ":""}${fmtDue(t.prazo)}</span>`:"";
     return `<article class="task ${t.concluida?"done":""}" style="--pc:${p.c}">
-      <button class="check" ${needAttr(t.id,"check")} aria-label="${t.concluida?"Reabrir":"Concluir"} ${esc(t.titulo)}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 8.5l3.2 3L13 4.5"/></svg></button>
+      <button class="check" ${needAttr(t.id,"check")} aria-label="${t.concluida?"Desmarcar concluída":"Marcar como concluída"}: ${esc(t.titulo)}"><span class="ck"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><small aria-hidden="true">${t.concluida?"Concluída":"Concluir"}</small></button>
       <button class="t-main" ${needAttr(t.id,"edit")} style="color:inherit">
         <div class="t-title">${esc(t.titulo)}</div>
         ${t.descricao?`<div class="t-desc">${esc(t.descricao)}</div>`:""}
@@ -224,6 +224,7 @@ document.addEventListener("click",async e=>{
   if(b.dataset.edit){openEditor(S.tasks.find(t=>t.id===b.dataset.edit));return}
   if(b.dataset.img){$("#bigImg").src=await fotoURL(b.dataset.img);$("#dlgImg").showModal();return}
   if(b.dataset.p){setPrio(b.dataset.p);return}
+  if(b.dataset.mic){dictate(document.getElementById(b.dataset.mic),b);return}
 });
 function needAccount(){toast(!S.user?"Crie sua conta ou entre para cadastrar":!verified()?"Confirme seu e-mail primeiro":S.myPedido?"Sua conta aguarda liberação":"Peça a liberação para cadastrar");openGate()}
 
@@ -231,11 +232,32 @@ $("#quick").addEventListener("submit",async e=>{
   e.preventDefault();
   if(!canWrite()){if(visitor())needAccount();return}
   const v=$("#quickInput").value.trim(); if(!v){openEditor(null);return}
-  const t={titulo:v,prioridade:AG.prioPadrao||"media",concluida:false,grupo:S.g||"",subgrupo:S.sub||"",prazo:S.tab==="hoje"?TODAY:"",criadoEm:new Date().toISOString()};
-  $("#quickInput").value="";
+  const t={titulo:v,prioridade:AG.prioPadrao||"media",concluida:false,grupo:S.g||"",subgrupo:S.sub||"",prazo:$("#quickDate").value||(S.tab==="hoje"?TODAY:""),criadoEm:new Date().toISOString()};
+  $("#quickInput").value=""; setQuickDate("");
   try{await db.collection("tarefas").add(t);toast("Tarefa adicionada")}catch(err){fail(err)}
 });
-$("#btnMore").onclick=()=>canWrite()?openEditor(null,$("#quickInput").value.trim()):visitor()&&needAccount();
+$("#btnMore").onclick=()=>{if(!canWrite()){visitor()&&needAccount();return}openEditor(null,$("#quickInput").value.trim());if($("#quickDate").value)$("#fPrazo").value=$("#quickDate").value};
+function setQuickDate(v){$("#quickDate").value=v;$("#qdX").hidden=!v;$("#qdHoje").hidden=!!v}
+$("#quickDate").addEventListener("input",()=>setQuickDate($("#quickDate").value));
+$("#qdHoje").onclick=()=>setQuickDate(TODAY);
+$("#qdX").onclick=()=>setQuickDate("");
+
+/* ================= ditado por voz ================= */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null;
+const KB_HINT="Toque no campo e use o microfone do teclado do celular para ditar";
+function dictate(input,btn){
+  if(rec){rec.stop();return}
+  if(!SR){toast(KB_HINT);input.focus();return}
+  const r=new SR(); r.lang="pt-BR"; r.interimResults=true; r.continuous=false;
+  const base=input.value.trim()?input.value.trim()+" ":"";
+  let got=false;
+  r.onstart=()=>{btn.classList.add("rec");btn.setAttribute("aria-label","Parar de ouvir");toast("Pode falar…")};
+  r.onresult=e=>{let t="";for(const x of e.results)t+=x[0].transcript;got=true;input.value=base+t.charAt(0).toUpperCase()+t.slice(1)};
+  r.onerror=e=>{got=true;toast(e.error==="not-allowed"||e.error==="service-not-allowed"||e.error==="audio-capture"?"Microfone não liberado aqui. "+KB_HINT+".":e.error==="no-speech"?"Não ouvi nada. Toque no microfone e fale de novo.":"Não foi possível ouvir. Tente de novo.")};
+  r.onend=()=>{btn.classList.remove("rec");btn.setAttribute("aria-label","Falar a tarefa");rec=null;if(!got)toast("Não ouvi nada. Tente de novo.")};
+  try{r.start();rec=r}catch{rec=null;toast(KB_HINT);input.focus()}
+}
 
 async function toggleDone(id){
   const t=S.tasks.find(x=>x.id===id); if(!t) return;
@@ -306,7 +328,7 @@ $("#form").addEventListener("submit",async e=>{
       if(old.foto&&old.foto!==data.foto&&!S.tasks.some(x=>x.id!==old.id&&x.foto===old.foto)) fotos.delete(old.foto).catch(()=>{});
     } else {
       await db.collection("tarefas").add({...data,concluida:nowDone,concluidaEm:nowDone?new Date().toISOString():null,criadoEm:new Date().toISOString()});
-      toast("Tarefa adicionada"); $("#quickInput").value="";
+      toast("Tarefa adicionada"); $("#quickInput").value=""; setQuickDate("");
     }
     $("#dlg").close();
   }catch(err){fail(err)} finally{$("#btnSave").disabled=false}
@@ -323,8 +345,10 @@ $("#delYes").onclick=async()=>{
 /* ================= grupos ================= */
 function renderGroups(){
   $("#gList").innerHTML=S.groups.length?S.groups.map(g=>`<div class="gblock">
-    <div class="gname">${esc(g.nome)}<button class="ghost" data-gdel="${g.id}">Excluir grupo</button></div>
-    <div class="subs">${(g.subgrupos||[]).map((s,i)=>`<span>${esc(s)}<button data-sdel="${g.id}|${i}" aria-label="Remover ${esc(s)}">×</button></span>`).join("")||'<span class="note">Sem subgrupos</span>'}</div>
+    <div class="gname"><span>${esc(g.nome)}</span><span class="hbtns"><button class="ghost" type="button" data-gren="${g.id}">Renomear</button><button class="ghost" type="button" data-gdel="${g.id}">Excluir grupo</button></span></div>
+    <form class="inline" data-grenf="${g.id}" hidden><input maxlength="40" aria-label="Novo nome do grupo ${esc(g.nome)}"><button class="btn" type="submit">Salvar</button><button class="ghost" type="button" data-rx="1">Cancelar</button></form>
+    <div class="subs">${(g.subgrupos||[]).map((s,i)=>`<span>${esc(s)}<button type="button" data-sren="${g.id}|${i}" aria-label="Renomear ${esc(s)}">✎</button><button type="button" data-sdel="${g.id}|${i}" aria-label="Remover ${esc(s)}">×</button></span>`).join("")||'<span class="note">Sem subgrupos</span>'}</div>
+    <form class="inline" data-srenf="${g.id}" hidden><input maxlength="40" aria-label="Novo nome do subgrupo"><button class="btn" type="submit">Salvar</button><button class="ghost" type="button" data-rx="1">Cancelar</button></form>
     <form class="inline" data-sadd="${g.id}"><input placeholder="Novo subgrupo" aria-label="Novo subgrupo em ${esc(g.nome)}"><button class="btn sec" type="submit">Adicionar</button></form>
     <div class="confirm" data-gconf="${g.id}" hidden>Excluir “${esc(g.nome)}”? As tarefas ficam sem grupo. <button type="button" class="btn danger" data-gyes="${g.id}">Excluir</button><button type="button" class="ghost" data-gno="${g.id}">Cancelar</button></div>
   </div>`).join(""):`<div class="empty"><strong>Nenhum grupo</strong>Crie o primeiro abaixo.</div>`;
@@ -336,19 +360,47 @@ $("#gAdd").addEventListener("submit",async e=>{
   try{await db.collection("grupos").add({nome:n,subgrupos:[],ordem:S.groups.length});$("#gNew").value=""}catch(err){fail(err)}
 });
 $("#gList").addEventListener("submit",async e=>{
-  e.preventDefault(); const id=e.target.dataset.sadd, inp=e.target.querySelector("input"), v=inp.value.trim();
+  e.preventDefault(); const f=e.target;
+  if(f.dataset.grenf){renameGroup(f.dataset.grenf,f.querySelector("input").value.trim());return}
+  if(f.dataset.srenf){renameSub(f.dataset.srenf,+f.dataset.i,f.querySelector("input").value.trim());return}
+  const id=f.dataset.sadd, inp=f.querySelector("input"), v=inp.value.trim();
   const g=S.groups.find(x=>x.id===id); if(!v||!g) return;
   if((g.subgrupos||[]).includes(v)) return toast("Esse subgrupo já existe");
   try{await db.doc("grupos/"+id).update({subgrupos:[...(g.subgrupos||[]),v]});inp.value=""}catch(err){fail(err)}
 });
 $("#gList").addEventListener("click",async e=>{
   const b=e.target.closest("button"); if(!b) return; const conf=id=>$(`[data-gconf="${id}"]`);
+  if(b.dataset.rx){b.closest("form").hidden=true;return}
+  if(b.dataset.gren){const f=$(`[data-grenf="${b.dataset.gren}"]`),g=S.groups.find(x=>x.id===b.dataset.gren);f.hidden=false;const i=f.querySelector("input");i.value=g?.nome||"";i.focus();i.select();return}
+  if(b.dataset.sren){const [id,i]=b.dataset.sren.split("|");const g=S.groups.find(x=>x.id===id);const f=$(`[data-srenf="${id}"]`);f.dataset.i=i;f.hidden=false;const inp=f.querySelector("input");inp.value=g?.subgrupos?.[+i]||"";inp.setAttribute("aria-label","Novo nome do subgrupo "+inp.value);inp.focus();inp.select();return}
   if(b.dataset.gdel) conf(b.dataset.gdel).hidden=false;
   if(b.dataset.gno) conf(b.dataset.gno).hidden=true;
   if(b.dataset.gyes){try{await db.doc("grupos/"+b.dataset.gyes).delete();if(S.g===b.dataset.gyes){S.g="";S.sub=""}}catch(err){fail(err)}}
   if(b.dataset.sdel){const [id,i]=b.dataset.sdel.split("|");const g=S.groups.find(x=>x.id===id);const subs=[...g.subgrupos];subs.splice(+i,1);
     try{await db.doc("grupos/"+id).update({subgrupos:subs})}catch(err){fail(err)}}
 });
+async function renameGroup(id,n){
+  const g=S.groups.find(x=>x.id===id); if(!g) return;
+  if(!n) return toast("Digite o novo nome");
+  if(n===g.nome){renderGroups();return}
+  if(S.groups.some(x=>x.id!==id&&x.nome.toLowerCase()===n.toLowerCase())) return toast("Já existe um grupo com esse nome");
+  try{await db.doc("grupos/"+id).update({nome:n});toast("Grupo renomeado");renderGroups()}catch(err){fail(err)}
+}
+// subgrupo é guardado pelo nome nas tarefas: renomeia na lista do grupo e em cada tarefa que usa o nome antigo
+async function renameSub(id,i,n){
+  const g=S.groups.find(x=>x.id===id); if(!g) return;
+  const subs=[...(g.subgrupos||[])], old=subs[i]; if(old===undefined) return;
+  if(!n) return toast("Digite o novo nome");
+  if(n===old){renderGroups();return}
+  if(subs.some((s,k)=>k!==i&&s.toLowerCase()===n.toLowerCase())) return toast("Esse subgrupo já existe");
+  subs[i]=n;
+  try{
+    const L=S.tasks.filter(t=>t.grupo===id&&t.subgrupo===old);
+    await batchRun([{t:"upd",p:"grupos/"+id,d:{subgrupos:subs}},...L.map(t=>({t:"upd",p:"tarefas/"+t.id,d:{subgrupo:n}}))]);
+    if(S.g===id&&S.sub===old) S.sub=n;
+    toast(L.length?`Subgrupo renomeado em ${L.length} tarefa${L.length>1?"s":""}`:"Subgrupo renomeado"); renderAll();
+  }catch(err){fail(err)}
+}
 
 /* ================= tela geral ================= */
 function go(p){S.page=p;renderAll();window.scrollTo(0,0)}
@@ -369,12 +421,14 @@ function renderAll(){
   $("#app").hidden=off||S.page!=="tarefas";
   $("#pgPainel").hidden=off||S.page!=="painel";
   $("#pgConfig").hidden=off||S.page!=="config";
+  $("#pgRotina").hidden=off||S.page!=="rotina";
   $("#pnav").hidden=off;
   document.querySelectorAll("#pnav button").forEach(b=>b.dataset.page===S.page?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
-  $("#h1").textContent=off?(AG.nome||"Minha Agenda"):{tarefas:AG.nome||"Minha Agenda",painel:"Painel",config:"Configurações"}[S.page];
+  $("#h1").textContent=off?(AG.nome||"Minha Agenda"):{tarefas:AG.nome||"Minha Agenda",painel:"Painel",rotina:"Secretaria",config:"Configurações"}[S.page];
   document.title=AG.nome||"Minha Agenda";
   renderGate(gm); renderBanner(gm); render();
-  if(!off&&S.page==="painel") renderPainel();
+  if(!off&&S.page==="painel"){renderPainel();renderRotinaPainel()}
+  if(!off&&S.page==="rotina") renderRotina();
   if(!off&&S.page==="config") syncConfig();
   if($("#dlgA").open) renderAcc();
   if($("#dlgG").open) renderGroups();
@@ -655,6 +709,227 @@ function renderPainel(){
   body.innerHTML=h;
 }
 $("#pGrupo").onchange=renderPainel;
+$("#pRotina").addEventListener("click",e=>{const b=e.target.closest("button[data-rdone]");if(!b)return;const k=b.dataset.rdone,L=R.feitos[TODAY]||[];R.feitos[TODAY]=L.includes(k)?L.filter(x=>x!==k):[...L,k];rotRefresh();saveRot()});
+
+/* ================= secretaria (rotina) — salva em rotina/{uid}, só a própria pessoa vê ================= */
+const DSEM=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+const TURNO={manha:{n:"Manhã",a:300,b:720},tarde:{n:"Tarde",a:720,b:1080},noite:{n:"Noite",a:1080,b:1440},livre:{n:"Qualquer horário",a:0,b:1440}};
+const R_DEF=()=>({inicio:"06:00",fim:"22:00",tarefas:[],feitos:{},ok:false,err:false,edit:null,delAsk:null,turno:"livre",fdias:[],dmodo:"qtd",lastEm:""});
+const R=R_DEF();
+let rotRef=null, rotUnsub=null;
+const hm=s=>{const [h,m]=String(s||"0:0").split(":").map(Number);return (h||0)*60+(m||0)};
+const fm=m=>{m=Math.max(0,Math.min(1439,Math.round(m)));return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};
+const wdi=s=>(parse(s).getDay()+6)%7;
+const durTxt=m=>{const h=Math.floor(m/60),r=Math.round(m%60);return h?(r?`${h}h${String(r).padStart(2,"0")}`:`${h}h`):`${r} min`};
+function startRotina(uid){
+  if(rotRef) return;
+  rotRef=db.doc("rotina/"+uid);
+  rotUnsub=rotRef.onSnapshot(d=>{const v=JSON.parse(JSON.stringify(d.exists?d.data():{}));
+    if(R.lastEm&&(v.em||"")<R.lastEm) return; // resposta antiga: não desfaz o que acabou de ser marcado
+    Object.assign(R,{inicio:v.inicio||"06:00",fim:v.fim||"22:00",tarefas:v.tarefas||[],feitos:v.feitos||{},ok:true,err:false});rotRefresh()},
+    err=>{console.error(err);R.ok=true;R.err=true;rotRefresh()});
+}
+function stopRotina(){if(rotUnsub){try{rotUnsub()}catch{}}rotUnsub=null;rotRef=null;Object.assign(R,R_DEF())}
+function rotRefresh(){if(S.page==="rotina")renderRotina();if(S.page==="painel")renderRotinaPainel()}
+async function saveRot(){
+  if(!rotRef){toast("Entre na sua conta para salvar a secretaria");return}
+  const cut=addDays(TODAY,-120),feitos={};
+  Object.keys(R.feitos).forEach(k=>{if(k>=cut&&R.feitos[k]?.length)feitos[k]=R.feitos[k]});
+  R.feitos=feitos;
+  const em=new Date().toISOString(); R.lastEm=em;
+  try{await rotRef.set(JSON.parse(JSON.stringify({inicio:R.inicio,fim:R.fim,tarefas:R.tarefas,feitos,em})))}catch(err){fail(err)}
+}
+
+/* sugestão: espalha os dias na semana e encaixa os horários no turno, sem bater com o que já está na rotina */
+function janela(t){
+  const a0=hm(R.inicio),b0=hm(R.fim)>a0?hm(R.fim):1440,T=TURNO[t.turno]||TURNO.livre,dur=t.dur||30;
+  let a=Math.max(a0,T.a),b=Math.min(b0,T.b);
+  if(b-a<dur){a=a0;b=b0}
+  return [a,b];
+}
+function ocupado(excl){
+  const o=[[],[],[],[],[],[],[]];
+  R.tarefas.forEach(t=>{if(t.id===excl)return;(t.diasSel||[]).forEach(d=>(t.horas||[]).forEach(h=>{const m=hm(h);o[d].push([m,m+(t.dur||30),t])}))});
+  return o;
+}
+function sugerir(t){
+  const occ=ocupado(t.id),n=Math.min(7,Math.max(1,t.dias||1)),k=Math.max(1,t.vezes||1),dur=t.dur||30,seed=t.seed||0;
+  const base=[...Array(n)].map((_,i)=>Math.floor(i*7/n));
+  const opts=[...Array(7)].map((_,r)=>{const ds=base.map(x=>(x+r)%7).sort((a,b)=>a-b);return {ds,load:ds.reduce((s,d)=>s+occ[d].reduce((a,[i,f])=>a+f-i,0),0),r}})
+    .sort((x,y)=>x.load-y.load||x.r-y.r).filter((o,i,A)=>A.findIndex(p=>p.ds.join()===o.ds.join())===i);
+  const fx=(t.diasFix||[]).filter(d=>d>=0&&d<7);
+  const dias=fx.length?[...fx].sort((a,b)=>a-b):opts[seed%opts.length].ds;
+  let [a,b]=janela(t);
+  if(t.hora&&hm(t.hora)>=hm(R.inicio)&&hm(t.hora)+dur<=(hm(R.fim)||1440)){a=hm(t.hora);b=Math.max(b,a+dur)}
+  const busy=dias.flatMap(d=>occ[d]),horas=[];
+  const livre=m=>m>=a&&m+dur<=b&&!busy.some(([i,f])=>m<f&&m+dur>i)&&!horas.some(h=>m<h+dur&&m+dur>h);
+  const shift=seed?(seed*45)%Math.max(15,b-a-dur):0;
+  for(let j=0;j<k;j++){
+    let alvo=k===1?a+shift:a+Math.round((b-dur-a)*j/(k-1));
+    alvo=Math.round(alvo/15)*15;
+    let m=null;
+    for(let s=0;s<=1440&&m===null;s+=15) for(const c of [alvo+s,alvo-s]) if(livre(c)){m=c;break}
+    horas.push(m===null?Math.max(a,Math.min(alvo,b-dur)):m);
+  }
+  horas.sort((x,y)=>x-y);
+  return {diasSel:dias,horas:horas.map(fm)};
+}
+function conflitos(t){
+  const occ=ocupado(t.id),out=[],dur=t.dur||30;
+  (t.diasSel||[]).forEach(d=>(t.horas||[]).forEach(h=>{const m=hm(h);occ[d].forEach(([i,f,o])=>{if(m<f&&m+dur>i)out.push(`${o.nome} (${DSEM[d]} ${fm(i)})`)})}));
+  const a=hm(R.inicio),b=hm(R.fim)||1440;
+  if((t.horas||[]).some(h=>hm(h)<a||hm(h)+dur>b)) out.unshift(`fora do seu dia (${R.inicio} às ${R.fim})`);
+  return [...new Set(out)];
+}
+function slotsDia(d){
+  const L=[];R.tarefas.forEach(t=>{if(t.conf&&(t.diasSel||[]).includes(d))(t.horas||[]).forEach(h=>L.push({t,h}))});
+  return L.sort((x,y)=>x.h.localeCompare(y.h));
+}
+const minSemana=()=>R.tarefas.filter(t=>t.conf).reduce((s,t)=>s+(t.dur||30)*(t.horas||[]).length*(t.diasSel||[]).length,0);
+const resumo=t=>`${(t.diasSel||[]).length===7?"todos os dias":(t.diasSel||[]).map(d=>DSEM[d]).join(", ")} · ${(t.horas||[]).join(", ")} · ${t.dur||30} min`;
+function rotEditor(t){
+  const c=conflitos(t);
+  return `<div class="redit" data-rid="${t.id}">
+    <div class="card-h"><b>${esc(t.nome)}</b><small>pediu ${t.dias}x por semana · ${t.vezes}x por dia · ${(TURNO[t.turno]||TURNO.livre).n}${t.hora?` · por volta das ${t.hora}`:""} · ${t.dur||30} min</small></div>
+    <span class="lbl">Dias da semana</span>
+    <div class="rdays">${DSEM.map((n,i)=>`<button type="button" class="chip" data-rday="${i}" aria-pressed="${(t.diasSel||[]).includes(i)}">${n}</button>`).join("")}</div>
+    <span class="lbl">Horários</span>
+    <div class="rtimes">${(t.horas||[]).map((h,j)=>`<span class="rt"><input type="time" value="${h}" data-rh="${j}" aria-label="Horário ${j+1}">${t.horas.length>1?`<button type="button" class="ghost" data-rhdel="${j}" aria-label="Tirar este horário">✕</button>`:""}</span>`).join("")}<button type="button" class="ghost" data-rhadd="1">+ horário</button></div>
+    ${c.length?`<p class="note rwarn">Atenção: coincide com ${c.slice(0,3).map(esc).join("; ")}</p>`:""}
+    <div class="actions"><button type="button" class="ghost" data-rdel="1">${R.delAsk===t.id?"Toque de novo para excluir":"Excluir"}</button><button type="button" class="ghost" data-redat="1">Editar dados</button>
+      <div class="r"><button type="button" class="btn sec" data-rsug="1">Outra sugestão</button><button type="button" class="btn" data-rconf="1">Confirmar</button></div></div>
+  </div>`;
+}
+function renderRotina(){
+  if(document.activeElement!==$("#rIni")) $("#rIni").value=R.inicio;
+  if(document.activeElement!==$("#rFim")) $("#rFim").value=R.fim;
+  document.querySelectorAll("#rTurno button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===R.turno));
+  const body=$("#rBody");
+  if(!rotRef){body.innerHTML=`<div class="empty"><strong>Entre na sua conta</strong>A secretaria fica salva na sua conta, só você vê.${S.user?"":`<div style="margin-top:10px"><button class="btn" type="button" id="rLogin">Entrar / Criar conta</button></div>`}</div>`;const l=$("#rLogin");if(l)l.onclick=openGate;return}
+  if(!R.ok){body.innerHTML=`<div class="empty"><strong>Carregando a secretaria…</strong></div>`;return}
+  if(R.err){body.innerHTML=`<div class="empty"><strong>Não foi possível abrir a secretaria</strong>Confira a conexão e abra a página de novo. Se continuar, publique as regras novas do Firebase (arquivo firestore.rules).</div>`;return}
+  if(!R.tarefas.length){body.innerHTML=`<div class="empty"><strong>Secretaria vazia</strong>Cadastre acima uma tarefa com quantos dias na semana, quantas vezes no dia e o turno. O sistema sugere dias e horários, e você confirma ou ajusta.</div>`;return}
+  const pend=R.tarefas.filter(t=>!t.conf),conf=R.tarefas.filter(t=>t.conf);
+  let h="";
+  if(pend.length) h+=`<section class="card"><div class="card-h"><h2>Sugestões para confirmar</h2><small>${pend.length}</small></div>${pend.map(rotEditor).join("")}</section>`;
+  if(conf.length) h+=`<section class="card"><div class="card-h"><h2>Tarefas da secretaria</h2><small>${conf.length}</small></div><div class="rlist">${conf.map(t=>`<div class="rtask"><div><b>${esc(t.nome)}</b><small>${resumo(t)}</small></div><button class="btn sec" type="button" data-radj="${t.id}">Ajustar</button></div>`).join("")}</div></section>`;
+  body.innerHTML=h;
+}
+function rotFDias(){
+  document.querySelectorAll("#rDSel button").forEach(b=>b.setAttribute("aria-pressed",R.fdias.includes(+b.dataset.fday)));
+  document.querySelectorAll("#rDModo button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.dm===R.dmodo));
+  document.querySelectorAll("#rDQtd button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.fq===$("#rDias").value));
+  $("#rDQtdW").style.display=R.dmodo==="qtd"?"":"none"; $("#rDSelW").style.display=R.dmodo==="dias"?"":"none";
+}
+rotFDias();
+function rotHojeSemana(){
+  let h="";
+  const wd=wdi(TODAY),hoje=slotsDia(wd),fe=R.feitos[TODAY]||[],nf=hoje.filter(s=>fe.includes(s.t.id+"@"+s.h)).length;
+  h+=`<section class="card"><div class="card-h"><h2>Hoje</h2><small>${DSEM[wd]} · ${nf} de ${hoje.length} feita${hoje.length===1?"":"s"}</small></div>${hoje.length?`<div class="rlist">${hoje.map(s=>{const k=s.t.id+"@"+s.h,ok=fe.includes(k);
+    return `<button type="button" class="rslot" data-rdone="${k}" aria-pressed="${ok}"><span class="ck" aria-hidden="true"></span><b>${s.h}</b><span class="tt">${esc(s.t.nome)}</span><small>${s.t.dur||30} min</small></button>`}).join("")}</div>`:'<span class="free">Nada da secretaria para hoje.</span>'}</section>`;
+  let wk="";
+  for(let d=0;d<7;d++){const L=slotsDia(d);wk+=`<div class="drow${d===wd?" today":""}"><div class="dl"><b>${DSEM[d]}</b><span>${d===wd?"hoje":L.length?L.length+"x":""}</span></div><div class="ditems">${L.length?L.map(s=>`<span class="ritem"><b>${s.h}</b>${esc(s.t.nome)}</span>`).join(""):'<span class="free">Livre</span>'}</div></div>`}
+  h+=`<section class="card"><div class="card-h"><h2>Semana</h2><small>${durTxt(minSemana())} por semana</small></div><div>${wk}</div></section>`;
+  return h;
+}
+function rotFormReset(){
+  R.edit=null;$("#rForm").reset();R.turno="livre";R.fdias=[];R.dmodo="qtd";rotFDias();
+  $("#rFormT").textContent="Nova tarefa da secretaria";$("#rGo").textContent="Sugerir horários";$("#rCancel").hidden=true;
+  document.querySelectorAll("#rTurno button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===R.turno));
+}
+$("#rForm").onsubmit=e=>{
+  e.preventDefault();
+  if(!rotRef){toast("Entre na sua conta para salvar a secretaria");return}
+  const nome=$("#rNome").value.trim(); if(!nome) return;
+  const fx=R.dmodo==="dias"?[...R.fdias]:[];
+  if(R.dmodo==="dias"&&!fx.length){toast("Marque ao menos um dia");return}
+  const base={nome,diasFix:fx,dias:fx.length||+$("#rDias").value,vezes:+$("#rVezes").value,turno:R.turno,hora:$("#rHora").value||"",dur:+$("#rDur").value,seed:0,conf:false};
+  let t=R.edit&&R.tarefas.find(x=>x.id===R.edit);
+  if(t) Object.assign(t,base);
+  else {t={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),...base,criadoEm:new Date().toISOString()};R.tarefas.push(t)}
+  Object.assign(t,sugerir(t));
+  const direto=R.cad; R.cad=false;
+  if(direto){t.conf=true;if(!t.confEm)t.confEm=TODAY}
+  rotFormReset(); rotRefresh(); saveRot(); toast(direto?"Tarefa cadastrada na secretaria":"Sugestão pronta: confirme ou ajuste");
+};
+$("#rCancel").onclick=rotFormReset;
+$("#rCad").addEventListener("click",()=>{R.cad=true});
+$("#rGo").addEventListener("click",()=>{R.cad=false});
+$("#pgRotina").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.fq){$("#rDias").value=b.dataset.fq;rotFDias();return}
+  if(b.dataset.dm){R.dmodo=b.dataset.dm;rotFDias();return}
+  if(b.dataset.fday!==undefined){const i=+b.dataset.fday;R.fdias=R.fdias.includes(i)?R.fdias.filter(x=>x!==i):[...R.fdias,i].sort((x,y)=>x-y);rotFDias();return}
+  if(b.dataset.t){R.turno=b.dataset.t;document.querySelectorAll("#rTurno button").forEach(x=>x.setAttribute("aria-pressed",x===b));return}
+  if(b.dataset.rdone){
+    const k=b.dataset.rdone,L=R.feitos[TODAY]||[];
+    R.feitos[TODAY]=L.includes(k)?L.filter(x=>x!==k):[...L,k];
+    rotRefresh(); saveRot(); return;
+  }
+  if(b.dataset.radj){const t=R.tarefas.find(x=>x.id===b.dataset.radj);if(t){t.conf=false;rotRefresh();saveRot();$("#rBody").scrollIntoView({behavior:"smooth"})}return}
+  const box=b.closest("[data-rid]"),t=box&&R.tarefas.find(x=>x.id===box.dataset.rid);
+  if(!t) return;
+  if(!b.dataset.rdel) R.delAsk=null;
+  if(b.dataset.rday!==undefined){
+    const i=+b.dataset.rday,on=t.diasSel.includes(i);
+    if(on&&t.diasSel.length===1){toast("Deixe ao menos um dia");return}
+    t.diasSel=on?t.diasSel.filter(x=>x!==i):[...t.diasSel,i].sort((x,y)=>x-y); t.dias=t.diasSel.length; t.diasFix=[...t.diasSel];
+  }
+  else if(b.dataset.rhdel!==undefined){t.horas.splice(+b.dataset.rhdel,1);t.vezes=t.horas.length}
+  else if(b.dataset.rhadd){const last=hm(t.horas[t.horas.length-1]||R.inicio);t.horas.push(fm(Math.min(last+120,(hm(R.fim)||1440)-(t.dur||30))));t.horas.sort();t.vezes=t.horas.length}
+  else if(b.dataset.rsug){t.seed=(t.seed||0)+1;Object.assign(t,sugerir(t))}
+  else if(b.dataset.rconf){t.conf=true;if(!t.confEm)t.confEm=TODAY;toast("Horários confirmados")}
+  else if(b.dataset.rdel){if(R.delAsk!==t.id){R.delAsk=t.id;renderRotina();return}R.delAsk=null;R.tarefas=R.tarefas.filter(x=>x!==t);toast("Tarefa da secretaria excluída")}
+  else if(b.dataset.redat){
+    R.edit=t.id;$("#rNome").value=t.nome;$("#rDias").value=t.dias;$("#rVezes").value=t.vezes;$("#rHora").value=t.hora||"";$("#rDur").value=t.dur||30;R.turno=t.turno||"livre";R.fdias=[...(t.diasSel||[])];R.dmodo=(t.diasFix||[]).length?"dias":"qtd";rotFDias();
+    document.querySelectorAll("#rTurno button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.t===R.turno));
+    $("#rFormT").textContent="Editar tarefa da secretaria";$("#rGo").textContent="Salvar e sugerir";$("#rCancel").hidden=false;
+    $("#rForm").scrollIntoView({behavior:"smooth"});return;
+  }
+  else return;
+  rotRefresh(); saveRot();
+});
+$("#pgRotina").addEventListener("change",e=>{
+  const i=e.target;
+  if(i.id==="rIni"||i.id==="rFim"){if(!i.value)return;if(!rotRef){toast("Entre na sua conta para salvar a secretaria");return}R[i.id==="rIni"?"inicio":"fim"]=i.value;rotRefresh();saveRot();toast("Horário do dia salvo");return}
+  if(i.dataset.rh===undefined) return;
+  const box=i.closest("[data-rid]"),t=box&&R.tarefas.find(x=>x.id===box.dataset.rid);
+  if(!t||!i.value) return;
+  t.horas[+i.dataset.rh]=i.value; t.horas.sort(); rotRefresh(); saveRot();
+});
+
+/* relatório da secretaria no painel */
+function rotPrevistos(day){
+  const wd=wdi(day),K=[];
+  R.tarefas.forEach(t=>{if(t.conf&&(t.confEm||TODAY)<=day&&(t.diasSel||[]).includes(wd))(t.horas||[]).forEach(h=>K.push({t,k:t.id+"@"+h}))});
+  return K;
+}
+function renderRotinaPainel(){
+  const el=$("#pRotina"); if(!el) return;
+  if(!rotRef||!R.ok||R.err){el.innerHTML="";return}
+  let h=`<div class="rhead"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg><h2>Secretaria</h2><span>relatório da sua rotina</span></div>`;
+  if(!R.tarefas.length){el.innerHTML=h+`<button class="empty" type="button" data-page="rotina"><strong>Secretaria sem tarefas</strong>Toque aqui para cadastrar suas tarefas na secretaria.</button>`;return}
+  const conf=R.tarefas.filter(t=>t.conf),pend=R.tarefas.length-conf.length;
+  const days=[...Array(7)].map((_,i)=>addDays(TODAY,i-6));
+  const per=days.map(d=>{const P=rotPrevistos(d),fe=R.feitos[d]||[];return {d,p:P.length,f:P.filter(x=>fe.includes(x.k)).length,P,fe}});
+  const hoje=per[6],tp=per.reduce((a,x)=>a+x.p,0),tf=per.reduce((a,x)=>a+x.f,0),taxa=tp?Math.round(tf/tp*100):null;
+  h+=`<section class="stats" aria-label="Resumo da secretaria">
+    <button class="stat good" type="button" data-page="rotina"><b>${hoje.f}/${hoje.p}</b><span>Hoje</span><small class="hint">${hoje.p?(hoje.f===hoje.p?"tudo feito":`${hoje.p-hoje.f} a fazer`):"dia livre"}</small></button>
+    <div class="stat"><b>${taxa===null?"–":taxa+"%"}</b><span>Cumprida</span><small class="hint">últimos 7 dias</small></div>
+    <div class="stat"><b>${durTxt(minSemana())}</b><span>Por semana</span><small class="hint">${conf.length} tarefa${conf.length===1?"":"s"}</small></div>
+    <button class="stat${pend?" late":""}" type="button" data-page="rotina"><b>${pend}</b><span>A confirmar</span><small class="hint">${pend?"ver sugestões":"tudo confirmado"}</small></button>
+  </section>`;
+  h+=rotHojeSemana();
+  const byT=conf.map(t=>{let p=0,f=0;per.forEach(x=>x.P.forEach(y=>{if(y.t===t){p++;if(x.fe.includes(y.k))f++}}));return {n:t.nome,p,f}}).filter(r=>r.p).sort((a,b)=>a.f/a.p-b.f/b.p);
+  const tm={manha:0,tarde:0,noite:0};
+  conf.forEach(t=>(t.horas||[]).forEach(hh=>{const m=hm(hh);tm[m<720?"manha":m<1080?"tarde":"noite"]+=(t.dur||30)*(t.diasSel||[]).length}));
+  const tr=["manha","tarde","noite"].map(k=>({n:TURNO[k].n,v:tm[k]})),tmax=Math.max(1,...tr.map(r=>r.v));
+  h+=`<div class="two">
+    <section class="card"><div class="card-h"><h2>Cumprimento por tarefa</h2><small>últimos 7 dias</small></div><div class="hbars">${byT.length?byT.map(r=>{const pc=Math.round(r.f/r.p*100);return `<div class="hbar" style="--pc:${pc>=80?"var(--ok)":pc>=50?"var(--accent)":"var(--late)"}"><span class="nm" title="${esc(r.n)}">${esc(r.n)}</span><span class="tr"><span class="fl" style="display:block;width:${Math.max(3,pc)}%"></span></span><span class="v">${pc}%<small>${r.f}/${r.p}</small></span></div>`}).join(""):'<span class="free">Ainda sem dias para medir</span>'}</div></section>
+    <section class="card"><div class="card-h"><h2>Tempo por turno</h2><small>por semana</small></div><div class="hbars">${tr.map(r=>`<div class="hbar"><span class="nm">${r.n}</span><span class="tr"><span class="fl" style="display:block;width:${r.v?Math.max(3,r.v/tmax*100):0}%"></span></span><span class="v">${r.v?durTxt(r.v):"–"}</span></div>`).join("")}</div></section>
+  </div>`;
+  el.innerHTML=h;
+}
 
 /* ================= configurações ================= */
 function saveLP(){
@@ -728,7 +1003,7 @@ async function makeBackup(motivo){
 function renderBackups(){
   const L=[...S.backups].sort((a,b)=>(b.criadoEm||"").localeCompare(a.criadoEm||""));
   $("#bkList").innerHTML=L.length?L.map(b=>`<div class="bk"><div><b>${fmtDT(b.criadoEm)}</b><small>${esc(b.motivo||"Manual")} · ${b.nT??(b.tarefas||[]).length} tarefas · ${b.nG??(b.grupos||[]).length} grupos</small></div>
-    <div class="ops"><button class="btn sec" type="button" data-bkr="${b.id}">Restaurar</button><button class="ghost" type="button" data-bkf="${b.id}">Baixar</button><button class="ghost" type="button" data-bkc="${b.id}">Copiar</button><button class="ghost" type="button" data-bkd="${b.id}">Excluir</button></div></div>`).join("")
+    <div class="ops"><button class="btn sec" type="button" data-bkr="${b.id}">Restaurar</button><button class="ghost" type="button" data-bkf="${b.id}">Salvar arquivo</button><button class="ghost" type="button" data-bkc="${b.id}">Copiar</button><button class="ghost" type="button" data-bkd="${b.id}" aria-label="Excluir backup de ${fmtDT(b.criadoEm)}">Excluir</button></div></div>`).join("")
     :`<div class="empty" style="padding:16px"><strong style="font-size:15px">Nenhum backup ainda</strong>Toque em Criar backup para guardar a primeira cópia.</div>`;
 }
 function validBackup(d){return d&&Array.isArray(d.tarefas)&&Array.isArray(d.grupos)}
@@ -752,18 +1027,28 @@ async function restore(data){
     toast(`Backup restaurado: ${data.tarefas.length} tarefas`);
   }catch(err){fail(err)} finally{busy=false;$("#bkRestoreYes").disabled=false}
 }
+function bkFileName(s){const d=new Date(s||Date.now()),z=n=>String(n).padStart(2,"0");return `agenda-backup-${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.json`}
 function download(data){
-  const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`agenda-backup-${(data.criadoEm||new Date().toISOString()).slice(0,10)}.json`;
-  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+  try{
+    const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=bkFileName(data.criadoEm);
+    document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+    toast("Arquivo de backup salvo");
+  }catch{toast("Não deu para salvar arquivo aqui. Copie o texto do backup.");showCopy(data)}
 }
 function showCopy(data){
   const txt=JSON.stringify(data);$("#bkText").value=txt;$("#bkCopyBox").hidden=false;
   try{navigator.clipboard.writeText(txt).then(()=>toast("Backup copiado"),()=>{$("#bkText").focus();$("#bkText").select()})}catch{$("#bkText").select()}
 }
-$("#bkNow").onclick=async()=>{if(busy)return;busy=true;$("#bkNow").disabled=true;
-  try{await makeBackup("Manual");toast("Backup criado")}catch(err){fail(err)} finally{busy=false;$("#bkNow").disabled=false}};
-$("#bkDown").onclick=()=>download(bkPayload("Arquivo"));
+$("#bkNow").onclick=()=>{const w=$("#bkWhere");w.hidden=!w.hidden};
+$("#bkWhere").onclick=async e=>{const b=e.target.closest("button[data-bkw]");if(!b)return;const w=b.dataset.bkw;$("#bkWhere").hidden=true;if(!w||busy)return;
+  busy=true;$("#bkNow").disabled=true;
+  try{
+    const data=bkPayload("Manual");
+    if(w!=="arquivo"){await makeBackup("Manual");if(w==="agenda")toast("Backup criado na agenda")}
+    if(w!=="agenda") download(data);
+  }catch(err){fail(err)}
+  finally{busy=false;$("#bkNow").disabled=false}};
 $("#bkList").onclick=async e=>{
   const b=e.target.closest("button"); if(!b) return; const d=b.dataset;
   const bk=S.backups.find(x=>x.id===(d.bkr||d.bkc||d.bkd||d.bkf)); if(!bk) return;
@@ -808,6 +1093,7 @@ $("#meDelForm").onsubmit=async e=>{
     await confirmPass($("#meDelPass").value);
     await deleteDoc(doc(fs,"pedidos",S.user.uid)).catch(()=>{});
     await deleteDoc(doc(fs,"prefs",S.user.uid)).catch(()=>{});
+    await deleteDoc(doc(fs,"rotina",S.user.uid)).catch(()=>{});
     await deleteUser(S.user); toast("Sua conta foi apagada");
   }catch(x){err.textContent=authMsg(x)} finally{$("#meDelBtn").disabled=false}
 };
@@ -836,7 +1122,7 @@ function evalRole(){
   syncData(); renderAll();
 }
 function onUser(u){
-  stopList("user"); stopList("owner");
+  stopList("user"); stopList("owner"); stopRotina();
   S.user=u||null; S.acc=null; S.myPedido=null; S.acessos=[]; S.pedidos=[]; S.backups=[]; gateKey="";
   if(u&&u.emailVerified){
     const own=u.email.toLowerCase()===DONO;
@@ -853,7 +1139,7 @@ function onUser(u){
         db.doc("pedidos/"+u.uid).onSnapshot(d=>{S.myPedido=d.exists?d.data():null;gateKey="";renderAll()},()=>{})];
       S.role="loading"; renderAll();
     }
-    loadCloudPrefs();
+    loadCloudPrefs(); startRotina(u.uid);
   } else evalRole();
 }
 

@@ -79,5 +79,10 @@ service cloud.firestore {
     match /prefs/{uid} {
       allow read, write: if logado() && request.auth.uid == uid;
     }
+
+    // Secretaria (rotina) de cada pessoa: só ela lê e altera
+    match /rotina/{uid} {
+      allow read, write: if confirmado() && request.auth.uid == uid;
+    }
   }
 }

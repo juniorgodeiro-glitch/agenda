@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icone-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
 <style>
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0}img{max-width:100%}[hidden]{display:none!important}
@@ -39,25 +39,38 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
   --p-baixa:#8ea39e; --p-media:#6aa7e6; --p-alta:#e6a64a; --p-urgente:#ef6e6e; --late:#ef6e6e; --ok:#5fcf86;
   color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--f-body);padding-inline:16px;padding-block:18px 96px}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--f-body);padding-inline:16px;padding-block:18px 108px}
 .wrap{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 h1{font:700 30px/1.05 var(--f-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
 .top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
 .today{color:var(--muted);font-size:13px;text-transform:capitalize}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.ghost{background:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--muted)}
+.ghost{background:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;color:var(--muted)}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 10px 8px;text-align:left;min-width:0}
 .stat b{display:block;font:600 20px/1.1 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stat span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .stat.late b{color:var(--late)}
-.quick{display:flex;gap:8px;background:var(--surface);border:1.5px solid var(--accent);border-radius:var(--r);padding:6px}
+.quick{display:flex;flex-wrap:wrap;gap:8px;background:var(--surface);border:1.5px solid var(--accent);border-radius:var(--r);padding:6px}
 .quick input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:16px;padding:8px 6px;color:var(--fg)}
 .quick input:focus-visible{outline:none}
+.qdate{flex-basis:100%;display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 4px 2px;min-width:0}
+.qdate label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;white-space:nowrap}
+.quick .qdate input{flex:1 1 auto;max-width:220px;height:38px;font-size:16px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:6px 10px;-webkit-appearance:none;appearance:none;text-align:left;display:block}
+.quick .qdate input::-webkit-date-and-time-value{text-align:left;margin:0}
+.quick .qdate input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.qdate .qd{border:1px solid var(--line);background:none;border-radius:999px;padding:5px 10px;font-size:12.5px;color:var(--muted);white-space:nowrap}
 .btn{background:var(--accent);color:var(--accent-fg);border:0;border-radius:10px;padding:9px 14px;font-weight:600}
 .btn.sec{background:var(--sunk);color:var(--fg)}
 .btn.danger{background:none;color:var(--late);border:1px solid var(--late)}
+.mic{flex:none;display:grid;place-items:center;width:42px;min-height:40px;background:var(--sunk);border:0;border-radius:10px;padding:0;color:var(--fg)}
+.mic svg{width:20px;height:20px}
+.mic.rec{background:var(--late);color:#fff;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--late) 25%,transparent)}}
+@media (prefers-reduced-motion:reduce){.mic.rec{animation:none}}
+.withmic{display:flex;gap:8px;min-width:0}
+.withmic input{flex:1}
 .quick .more{background:var(--sunk);border:0;border-radius:10px;padding:0 12px;font-size:20px;line-height:1;color:var(--fg)}
 .ctx{font-size:12px;color:var(--muted);margin-top:-8px;padding-left:4px}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
@@ -73,9 +86,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .task{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;position:relative}
 .task.done{opacity:.6}
 .task.done .t-title{text-decoration:line-through}
-.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--pc,var(--line));background:none;display:grid;place-items:center;padding:0;margin-top:1px}
-.task.done .check{background:var(--ok);border-color:var(--ok);color:var(--surface)}
-.check svg{width:14px;height:14px}
+.check{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;padding:0;margin-top:2px;min-width:40px;color:var(--muted)}
+.check .ck{width:20px;height:20px;border-radius:4px;border:2px solid var(--pc,var(--line));display:grid;place-items:center;color:transparent}
+.check small{font-size:10px;font-weight:600;line-height:1.1}
+.check:not([disabled]):hover .ck{color:var(--pc,var(--muted))}
+.task.done .check .ck{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.task.done .check small{color:var(--ok)}
+.check svg{width:12px;height:12px}
 .t-main{min-width:0;text-align:left;background:none;border:0;padding:0}
 .t-title{font-weight:600;font-size:15.5px;overflow-wrap:anywhere}
 .t-desc{color:var(--muted);font-size:13px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -100,9 +117,16 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
 .field>label,.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
 .field input,.field select,.field textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 11px;width:100%;min-width:0}
 .field textarea{min-height:72px;resize:vertical}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* campos de digitação: mesma altura e alinhamento (iPhone desenha data e lista com estilo próprio) */
+.field input:not([type=checkbox]):not([type=file]),.field select{height:46px;line-height:1.2;display:block}
+.field input[type=date]{-webkit-appearance:none;appearance:none;text-align:left}
+.field input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
+.field input[type=date]::-webkit-datetime-edit{padding:0}
+.field input[type=date]::-webkit-calendar-picker-indicator{opacity:.55;margin-left:auto}
+.field select{-webkit-appearance:none;appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%237d918c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:12px 8px}
+.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end}
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--sunk);border-radius:10px;padding:4px}
-.seg button{border:0;background:none;border-radius:7px;padding:8px 2px;font-size:13px;color:var(--muted)}
+.seg button{border:0;background:none;border-radius:7px;padding:8px 2px;font-size:13px;font-weight:700;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--pc);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--pc)}
 .photo{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .photo img{width:88px;height:88px;object-fit:cover;border-radius:12px}
@@ -114,7 +138,7 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
 .confirm{background:var(--sunk);border-radius:10px;padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
 .note{font-size:12px;color:var(--muted)}
 .gblock{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
-.gblock .gname{display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.gblock .gname{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600}
 .subs{display:flex;flex-wrap:wrap;gap:6px}
 .subs span{background:var(--sunk);border-radius:999px;padding:3px 4px 3px 10px;font-size:13px;display:inline-flex;align-items:center;gap:2px}
 .subs span button{border:0;background:none;color:var(--muted);padding:0 6px;font-size:15px;line-height:1}
@@ -144,7 +168,7 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
 .acc .ops{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .sect{font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 -4px}
 .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--sunk);border-radius:10px;padding:4px}
-.plans button{border:0;background:none;border-radius:7px;padding:8px 2px;font-size:13px;color:var(--muted)}
+.plans button{border:0;background:none;border-radius:7px;padding:8px 2px;font-size:13px;font-weight:700;color:var(--muted)}
 .plans button[aria-pressed="true"]{background:var(--surface);color:var(--fg);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--accent)}
 .preview{font-size:13px;background:var(--sunk);border-radius:10px;padding:9px 12px}
 .ro .quick,.ro #btnMore{display:none}
@@ -156,10 +180,10 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
 /* navegação entre páginas */
 .pnav{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);padding:6px 16px calc(6px + env(safe-area-inset-bottom,0px))}
 .pnav .in{max-width:680px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.pnav button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:10px;font-size:12px;color:var(--muted)}
-.pnav svg{width:22px;height:22px}
-.pnav button[aria-current="page"]{color:var(--accent);background:var(--accent-soft);font-weight:600}
-.toast{bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+.pnav button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;border-radius:10px;font-size:13px;font-weight:700;color:var(--muted)}
+.pnav svg{width:28px;height:28px}
+.pnav button[aria-current="page"]{color:var(--accent);background:var(--accent-soft);font-weight:700}
+.toast{bottom:calc(90px + env(safe-area-inset-bottom,0px))}
 /* painel */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .card h2{font:700 17px/1.2 var(--f-display);margin:0}
@@ -207,6 +231,7 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
 .srow .inline{flex:1 1 260px}
 .srow .r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .srow .confirm{flex-basis:100%}
+#bkWhere .btn.sec{background:var(--surface);border:1px solid var(--line)}
 .kv{font:500 14px var(--f-mono);font-variant-numeric:tabular-nums}
 .bklist{display:flex;flex-direction:column;gap:8px}
 .bk{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
@@ -218,6 +243,43 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
 #bkText{font:12px/1.4 var(--f-mono);width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px;resize:vertical}
 @media (max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}.stats.noval{grid-template-columns:repeat(3,1fr)}.row{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:no-preference){.task{transition:opacity .2s}}
+/* rotina */
+.pnav .in{grid-template-columns:repeat(4,1fr)}
+.pnav .sm{display:none}
+@media (max-width:420px){.pnav .lg{display:none}.pnav .sm{display:inline}.pnav button{font-size:12px}}
+.rtime{display:flex;flex-direction:column;gap:4px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.rtime input,.rt input{font:500 15px var(--f-mono);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:7px 9px;min-width:0}
+.plans.r4{grid-template-columns:repeat(4,1fr)}
+.field input[type=time],.rtime input,.rt input{-webkit-appearance:none;appearance:none;text-align:left;width:100%;min-width:0}
+.field input[type=time]::-webkit-date-and-time-value,.rtime input::-webkit-date-and-time-value,.rt input::-webkit-date-and-time-value{text-align:left;margin:0}
+.rtime{flex:1 1 120px;min-width:0}.rtime input{height:42px}.rt input{width:120px;height:40px}
+.srow .r:has(.rtime){flex:1 1 260px;flex-wrap:nowrap}
+.redit{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.redit .card-h b{font-weight:700}
+.rdays{display:flex;gap:6px;flex-wrap:wrap}
+.rdays .chip{min-width:44px}
+.rtimes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rt{display:flex;gap:4px;align-items:center}
+.rwarn{color:var(--late);margin:0}
+.rlist{display:flex;flex-direction:column;gap:6px}
+.rslot{display:grid;grid-template-columns:22px auto minmax(0,1fr) auto;gap:10px;align-items:center;background:none;border:1px solid var(--line);border-radius:10px;padding:9px 12px;text-align:left;color:inherit;font-size:14.5px}
+.rslot .ck{width:20px;height:20px;border-radius:50%;border:2px solid var(--line)}
+.rslot[aria-pressed="true"] .ck{background:var(--ok);border-color:var(--ok)}
+.rslot[aria-pressed="true"] .tt{text-decoration:line-through;color:var(--muted)}
+.rslot b,.ritem b{font:500 13px var(--f-mono);font-variant-numeric:tabular-nums}
+.rslot small{color:var(--muted);font-size:12px}
+.rslot .tt{overflow-wrap:anywhere;min-width:0}
+.ritem{display:flex;gap:8px;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.ritem b{color:var(--muted)}
+.rtask{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:8px}
+.rtask:first-child{border-top:0;padding-top:0}
+.rtask small{display:block;color:var(--muted);font-size:12.5px}
+.weeks.r7{grid-template-columns:repeat(7,minmax(0,1fr))}
+button.empty{width:100%;font:inherit}
+.rhead{display:flex;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border-radius:var(--r);background:var(--accent);color:var(--accent-fg)}
+.rhead svg{width:26px;height:26px;flex:none}
+.rhead h2{font:700 22px/1.1 var(--f-display);margin:0}
+.rhead span{margin-left:auto;font-size:12.5px;opacity:.85;text-align:right}
 
 .gate .plans{margin-bottom:4px}
 .gate .who{font-size:13px;background:var(--sunk);border-radius:10px;padding:9px 12px;color:var(--fg)}
@@ -255,8 +317,10 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
 
   <form class="quick" id="quick" autocomplete="off">
     <input id="quickInput" placeholder="Nova tarefa… ex.: marcar dentista" aria-label="Nova tarefa rápida">
+    <button class="mic" type="button" data-mic="quickInput" aria-label="Falar a tarefa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
     <button class="more" type="button" id="btnMore" aria-label="Cadastrar com detalhes">+</button>
     <button class="btn" type="submit">Adicionar</button>
+    <div class="qdate"><label for="quickDate">Prazo</label><input type="date" id="quickDate" aria-label="Prazo previsto da tarefa rápida"><button type="button" class="qd" id="qdHoje">Hoje</button><button type="button" class="qd" id="qdX" hidden aria-label="Limpar prazo">✕</button></div>
   </form>
   <div class="ctx" id="ctx"></div>
 
@@ -280,6 +344,33 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
   <div class="stack" id="pgPainel" hidden>
     <div class="pfilter"><label for="pGrupo" class="lbl">Grupo</label><select id="pGrupo" class="sel"></select></div>
     <div class="stack" id="pBody"><div class="empty"><strong>Carregando o painel…</strong>Os números aparecem assim que a agenda abrir.</div></div>
+    <div class="stack" id="pRotina"></div>
+  </div>
+
+  <!-- Página: Secretaria -->
+  <div class="stack" id="pgRotina" hidden>
+    <section class="set">
+      <div class="srow"><div class="sl"><b>Meu dia</b><span>Hora em que começo o dia e termino a noite. As sugestões ficam dentro desse horário.</span></div>
+        <div class="r"><label class="rtime">Começo<input type="time" id="rIni" value="06:00"></label><label class="rtime">Fim<input type="time" id="rFim" value="22:00"></label></div></div>
+    </section>
+    <form class="card" id="rForm" autocomplete="off">
+      <div class="card-h"><h2 id="rFormT">Nova tarefa da secretaria</h2><button type="button" class="ghost" id="rCancel" hidden>Cancelar</button></div>
+      <div class="field"><label for="rNome">Tarefa</label><input id="rNome" required maxlength="60" placeholder="Ex.: caminhada, leitura, remédio"></div>
+      <div class="field"><span class="lbl">Dias da semana</span><div class="plans" id="rDModo" style="grid-template-columns:1fr 1fr"><button type="button" data-dm="qtd" aria-pressed="true">Quantidade de dias</button><button type="button" data-dm="dias">Escolher os dias</button></div></div>
+      <div class="field" id="rDQtdW"><span class="lbl">Quantos dias por semana</span><div class="rdays" id="rDQtd"><button type="button" class="chip" data-fq="1">1</button><button type="button" class="chip" data-fq="2">2</button><button type="button" class="chip" data-fq="3">3</button><button type="button" class="chip" data-fq="4">4</button><button type="button" class="chip" data-fq="5">5</button><button type="button" class="chip" data-fq="6">6</button><button type="button" class="chip" data-fq="7">Todos</button></div><span class="note">O sistema escolhe quais dias, espalhados na semana.</span></div>
+      <div class="field" id="rDSelW" style="display:none"><span class="lbl">Quais dias</span><div class="rdays" id="rDSel"><button type="button" class="chip" data-fday="0">Seg</button><button type="button" class="chip" data-fday="1">Ter</button><button type="button" class="chip" data-fday="2">Qua</button><button type="button" class="chip" data-fday="3">Qui</button><button type="button" class="chip" data-fday="4">Sex</button><button type="button" class="chip" data-fday="5">Sáb</button><button type="button" class="chip" data-fday="6">Dom</button></div><span class="note">Toque nos dias em que quer fazer a tarefa.</span></div>
+      <div class="row">
+        <div class="field" id="rDiasW" style="display:none"><label for="rDias">Quantos dias por semana</label><select id="rDias"><option value="1">1 dia</option><option value="2">2 dias</option><option value="3" selected>3 dias</option><option value="4">4 dias</option><option value="5">5 dias</option><option value="6">6 dias</option><option value="7">Todos os dias</option></select></div>
+        <div class="field"><label for="rVezes">Vezes por dia</label><select id="rVezes"><option value="1" selected>1 vez</option><option value="2">2 vezes</option><option value="3">3 vezes</option><option value="4">4 vezes</option><option value="5">5 vezes</option><option value="6">6 vezes</option></select></div>
+      </div>
+      <div class="field"><span class="lbl">Turno</span><div class="plans r4" id="rTurno"><button type="button" data-t="manha">Manhã</button><button type="button" data-t="tarde">Tarde</button><button type="button" data-t="noite">Noite</button><button type="button" data-t="livre" aria-pressed="true">Qualquer</button></div></div>
+      <div class="row">
+        <div class="field"><label for="rHora">Horário preferido</label><input type="time" id="rHora"></div>
+        <div class="field"><label for="rDur">Duração</label><select id="rDur"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">1 hora</option><option value="90">1h30</option><option value="120">2 horas</option></select></div>
+      </div>
+      <div class="actions"><span class="note">O sistema sugere dias e horários; você confirma ou ajusta.</span><div class="r"><button class="btn sec" type="submit" id="rGo">Sugerir horários</button><button class="btn" type="submit" id="rCad">Cadastrar</button></div></div>
+    </form>
+    <div class="stack" id="rBody"></div>
   </div>
 
   <!-- Página: Configurações -->
@@ -289,7 +380,7 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
       <div class="srow"><div class="sl"><b>Tema</b><span>Salvo na nuvem: vale em todos os seus aparelhos.</span></div>
         <div class="plans" id="cTema"><button type="button" data-tema="auto">Automático</button><button type="button" data-tema="light">Claro</button><button type="button" data-tema="dark">Escuro</button></div></div>
       <div class="srow"><div class="sl"><label for="cPagina"><b>Abrir em</b></label><span>Página mostrada ao abrir a agenda.</span></div>
-        <select id="cPagina" class="sel"><option value="tarefas">Tarefas</option><option value="painel">Painel</option></select></div>
+        <select id="cPagina" class="sel"><option value="tarefas">Tarefas</option><option value="painel">Painel</option><option value="rotina">Secretaria</option></select></div>
       <div class="srow"><div class="sl"><label for="cAba"><b>Lista inicial</b></label><span>Aba aberta na página de tarefas.</span></div>
         <select id="cAba" class="sel"><option value="pendentes">Pendentes</option><option value="hoje">Hoje</option><option value="atrasadas">Atrasadas</option><option value="todas">Todas</option></select></div>
     </div>
@@ -331,8 +422,14 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
     <div class="stack" id="cBackup" hidden>
       <div class="sect">Backup e restauração</div>
       <div class="set">
-        <div class="srow"><div class="sl"><b>Criar backup agora</b><span id="bkInfo">Guarda uma cópia das tarefas e grupos na nuvem (ficam os 10 mais recentes). Baixar arquivo salva uma cópia no seu aparelho.</span></div>
-          <div class="r"><button class="btn" type="button" id="bkNow">Criar backup</button><button class="btn sec" type="button" id="bkDown">Baixar arquivo</button></div></div>
+        <div class="srow"><div class="sl"><b>Criar backup agora</b><span id="bkInfo">Guarda uma cópia das tarefas e grupos. Ficam os 10 mais recentes.</span></div>
+          <button class="btn" type="button" id="bkNow">Criar backup</button>
+          <div class="confirm" id="bkWhere" hidden style="flex-basis:100%"><span style="flex-basis:100%">Onde salvar o backup?</span>
+            <button type="button" class="btn sec" data-bkw="agenda">Na agenda</button>
+            <button type="button" class="btn sec" data-bkw="arquivo">Arquivo no aparelho</button>
+            <button type="button" class="btn" data-bkw="ambos">Nos dois</button>
+            <button type="button" class="ghost" data-bkw="">Cancelar</button>
+            <span class="note" style="flex-basis:100%">Na agenda: fica guardado na nuvem, entre os 10 mais recentes. Arquivo no aparelho: baixa um arquivo .json (no iPhone, vai para Arquivos › Downloads).</span></div></div>
         <div class="srow" style="display:block"><div class="bklist" id="bkList"></div></div>
         <div class="srow"><div class="sl"><b>Restaurar de um arquivo</b><span>Arquivo .json baixado ou copiado antes.</span></div>
           <label class="btn sec" for="bkFile">Escolher arquivo</label><input type="file" id="bkFile" accept=".json,application/json,text/plain" hidden></div>
@@ -382,7 +479,8 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
 <nav class="pnav" id="pnav" aria-label="Páginas"><div class="in">
   <button type="button" data-page="tarefas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Tarefas</button>
   <button type="button" data-page="painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Painel</button>
-  <button type="button" data-page="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Configurações</button>
+  <button type="button" data-page="rotina"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>Secretaria</button>
+  <button type="button" data-page="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="lg">Configurações</span><span class="sm">Ajustes</span></button>
 </div></nav>
 
 <!-- Acessos (dono) -->
@@ -440,7 +538,7 @@ dialog::backdrop{background:rgba(5,20,17,.45)}
 <dialog id="dlg">
   <form class="sheet" id="form" autocomplete="off">
     <div class="sh-head"><h2 id="formTitle">Nova tarefa</h2><button type="button" class="ghost" data-close>Fechar</button></div>
-    <div class="field"><label for="fTitulo">Tarefa</label><input id="fTitulo" required placeholder="O que precisa ser feito"></div>
+    <div class="field"><label for="fTitulo">Tarefa</label><div class="withmic"><input id="fTitulo" required placeholder="O que precisa ser feito"><button class="mic" type="button" data-mic="fTitulo" aria-label="Falar a tarefa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button></div></div>
     <div class="field"><label for="fDesc">Descrição</label><textarea id="fDesc" placeholder="Detalhes, endereço, observações"></textarea></div>
     <div class="field" id="photoField">
       <span class="lbl">Foto</span>
